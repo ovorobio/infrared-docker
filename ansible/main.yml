@@ -1,0 +1,53 @@
+# This should be your Ansible playbooks to provision your containers.
+# An inventory will be automatically created using the names of the services
+# from your container.yml file.
+# Add any roles or other modules you'll need to this directory too.
+# For many examples of roles, check out Ansible Galaxy: https://galaxy.ansible.com/
+#
+---
+- hosts: infrared
+  gather_facts: false
+  tasks:
+  - name: "Install epel repo"
+    shell: "rpm -iUvh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-8.noarch.rpm"
+    ignore_errors: true
+
+  - name: "Install needed packages"
+    yum:
+      name: "{{ item }}"
+      state: latest
+    with_items:
+      - "wget"
+      - "python-pip"
+      - "libselinux-python"
+      - "gcc"
+      - "python-devel"
+      - "openssl-devel"
+
+  - name: "Clone Infrared"
+    git:
+      repo: "https://github.com/rhos-infra/InfraRed.git"
+      dest: "/home/jenkins/infrared"
+      version: "v1.2.14"
+
+  - name: "Changing ownership"
+    file:
+        path: "/home/jenkins/infrared"
+        owner: jenkins
+        group: jenkins
+        state: directory
+        recurse: yes
+
+  - name:  "Install infrared"
+    shell: "pip install ."
+    args:
+        chdir: "/home/jenkins/infrared"
+
+  - name: "Remove host keys from ssh config"
+    replace:
+      dest: "/etc/ssh/sshd_config"
+      regexp: '^HostKey'
+      replace: '#HostKey'
+
+  - name: "Clean all caches"
+    shell: "yum clean all"
